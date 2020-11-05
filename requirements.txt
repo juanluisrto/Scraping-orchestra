@@ -1,0 +1,6 @@
+Flask
+google==3.0.0
+pandas
+google-cloud-logging
+gunicorn
+gcsfs
