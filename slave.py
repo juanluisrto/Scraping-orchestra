@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify
 from google.cloud import storage as gc_storage, logging as gc_logging
 import logging, os, time
-from multiprocessing import Process, Pipe, Value
+from multiprocessing import Process, Pipe
 from utils import GCloudConnection, Scraper
-import ctypes
 
 class Slave(GCloudConnection):
 
@@ -16,18 +15,16 @@ class Slave(GCloudConnection):
 
     def store(self, df, filename):
         url = f"gs://{self.URL}/{filename}"
-        df.to_csv("test.csv")
+        df.to_csv(filename)
         logging.info(f"{filename} stored succesfully")
 
     def scrap(self, job):
         self.child.send("busy")
-        self.state = "busy"
         try:
             df = self.scraper.scrap(job)
             self.child.send("idle")
-            self.state = "idle"
         except Exception as ex:
-            self.set_state("scraping-detected")
+            self.child.send("scraping-detected")
             logging.error(f"Job {job} failed with an error: {ex}")
             df = "Failed"
         return df
@@ -38,12 +35,12 @@ class Slave(GCloudConnection):
         while True:
             job = self.child.recv()
             if job != None:
-                logging.info(f"RUN: {self.state} -- {job}")
+                logging.info(f"Running job: {job}")
                 df = self.scrap(job)
                 if str(df) != "Failed":
-                    self.store(df, str(job))
+                    self.store(df, "_".join(job.values()))
             else:
-                logging.info(f"No Jo. State: {self.state}")
+                logging.info("Waiting for jobs")
                 time.sleep(3)
 
     def change_state(self, child):
@@ -55,28 +52,32 @@ class Slave(GCloudConnection):
             time.sleep(4)
 
 app = Flask(__name__)
-url = "127.0.0.1:8080"
-slave = Slave(url)
+
+@app.route('/start')
+def start_child_process():
+    url = "127.0.0.1:8080"
+    global slave
+    slave = Slave(url)
+    p = Process(target=slave.run, args=[slave.child])
+    p.start()
+    logging.info("Slave is running")
+    return "Scraper running"
 
 @app.route('/job')
 def process_job():
     logging.info(request.args)
-    slave.sender.send(request.args)
+    slave.parent.send(request.args)
     return f"Job {request.args} started"
 
 @app.route('/state')
 def current_state():
-    new_state = slave.parent.recv() #gets last update sent by child process
-    if new_state is not None:
-        slave.state = new_state
+    if slave.parent.poll(timeout=3): #gets last update sent by child process if there is something new
+        slave.state = slave.parent.recv()
     logging.info(f"Current state: {slave.state}")
     return slave.state
 
 
+
+
 if __name__ == "__main__":
-    def run(slave):
-        slave.run()
-    p = Process(target= slave.change_state, args = [slave.child])
-    p.start()
-    logging.info("Slave run")
     app.run(host='127.0.0.1', port=8080, debug=True)

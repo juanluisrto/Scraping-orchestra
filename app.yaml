@@ -1,5 +1,5 @@
 runtime: python38
-entrypoint: gunicorn -b :$PORT slave:app  --timeout 360000
+entrypoint: gunicorn -b :$PORT slave:app  --timeout 360000 --preload
 instance_class: B2  #Bs are basic instances without automatic scaling. Necessary to restart them manually
 manual_scaling:
   instances: 1      #Number of instances must be defined
