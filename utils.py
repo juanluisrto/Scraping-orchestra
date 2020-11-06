@@ -1,13 +1,14 @@
 from google.cloud import logging as gc_logging
 import pandas as pd
 from googlesearch import search, get_tbs
-import os
+import os, logging
 
 class GCloudConnection:
 
     def __init__(self, URL):
         # env variable declared only for gcloud authentication during local tests. Not necessary at deployed instances
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = './stock-sentiment-nlp.json'
+        logging.getLogger().setLevel(logging.INFO)
         self.URL = URL
 
     def connect_cloud_services(self, LOG_NAME):
@@ -17,11 +18,13 @@ class GCloudConnection:
             logging_client.setup_logging().logger(LOG_NAME)
 
 class Scraper:
-
-    def scrap(self, query, from_date, to_date, number_of_urls = 10):
-        tbs = get_tbs(from_date=from_date, to_date=to_date) #"%Y-%m-%d"
-        results = search(query, tbs=tbs, pause=5, stop=number_of_urls)
+    # runs same query filtering by every date in date range
+    def scrap(self, job, number_of_urls = 10):
+        query, from_date, to_date = job.values()
         urls = []
-        for url in results:
-            urls.append(url)
-        return pd.DataFrame(urls, columns=["urls"])
+        for d in pd.date_range(from_date, to_date):
+            tbs = get_tbs(from_date=d, to_date=d) #"%Y-%m-%d"
+            results = search(query, tbs=tbs, pause=2, stop=number_of_urls)
+            for url in results:
+                urls.append({"date" : d.date(), "url" : url})
+        return pd.DataFrame(urls, columns=["date", "url"])
