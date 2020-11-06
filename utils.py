@@ -7,7 +7,7 @@ class GCloudConnection:
 
     def __init__(self, URL, LOG_NAME):
         # env variable declared only for gcloud authentication during local tests. Not necessary at deployed instances
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = './stock-sentiment-nlp.json'
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = './credentials.json'
         logging.getLogger().setLevel(logging.INFO)
         self.connect_cloud_services(LOG_NAME)
         self.URL = URL
