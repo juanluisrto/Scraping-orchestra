@@ -1,15 +1,14 @@
 import logging, pexpect
 import requests
 from urllib.parse import urlencode
-import pandas as pd, time
+import os, time
 from utils import GCloudConnection
 
 
 class Master(GCloudConnection):
 
     def __init__(self, URL):
-        GCloudConnection.__init__(self,URL)
-        #self.connect_cloud_services("master-scraper")
+        GCloudConnection.__init__(self,URL, LOG_NAME= "master-scraper")
         self.pending_jobs = []
         self.current_job = None
 
@@ -40,10 +39,6 @@ class Master(GCloudConnection):
             state = "no-answer"
         return state
 
-    def get_pending_jobs(self):
-        response = requests.get(f"{self.URL}/queue", timeout=10)
-        return response.json()
-
     def send_job(self, job):
         url = self.URL + "/job?" + urlencode(job)
         requests.get(url, timeout=10)
@@ -56,7 +51,7 @@ class Master(GCloudConnection):
             next_job_ready = False
             if state == "scraping-detected":  # Error 429 in slave.
                 self.pending_jobs.insert(0, self.current_job)
-                #self.restart_machine()
+                self.restart_machine()
             elif state == "busy" or state == "no-answer":  # Job being currently run or server relaunching
                 next_job_ready = False
             elif state == "idle":
@@ -69,20 +64,16 @@ class Master(GCloudConnection):
     def import_jobs(self):
         #df_jobs = pd.read_csv("/csv/sample_jobs.csv")
         #self.pending_jobs = list(df_jobs.to_dict("index").values())
-        self.pending_jobs.extend([{"query" : "Apple", "start": "2019-01-01", "end" : "2019-01-02"},
-                                 {"query" : "Tesla", "start": "2019-03-01", "end" : "2019-03-03"}])
-
-    def test_state(self):
-        while True:
-            logging.info("Current state: " + self.check_slave_state())
-            time.sleep(3)
-
+        self.pending_jobs.extend([{"query" : "Apple", "start": "2019-01-01", "end" : "2019-01-06"},
+                                  {"query" : "Tesla", "start": "2019-03-01", "end" : "2019-03-03"},
+                                  {"query" : "Space-X", "start": "2019-02-01", "end" : "2019-06-03"},
+                                  {"query" : "Warren Buffet", "start": "2019-03-01", "end" : "2019-03-03"}])
 
 
 if __name__ == "__main__":
-    url = "http://127.0.0.1:8080"
+    url = os.environ["URL"]
+    url = "http://scrap-orchestra-dot-stock-sentiment-nlp.wl.r.appspot.com"
     master = Master(url)
     master.import_jobs()
     if master.start():
-        #master.test_state()
         master.orchestrate()

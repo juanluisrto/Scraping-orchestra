@@ -1,5 +1,9 @@
 runtime: python38
 entrypoint: gunicorn -b :$PORT slave:app  --timeout 360000 --preload
+service: scrap-orchestra
+env_variables:
+  URL: http://scrap-orchestra-dot-stock-sentiment-nlp.wl.r.appspot.com
+#  URL: "http://127.0.0.1:8080"
 instance_class: B2  #Bs are basic instances without automatic scaling. Necessary to restart them manually
 manual_scaling:
   instances: 1      #Number of instances must be defined

@@ -7,15 +7,15 @@ from utils import GCloudConnection, Scraper
 class Slave(GCloudConnection):
 
     def __init__(self, URL):
-        GCloudConnection.__init__(self, URL)
-        #self.connect_cloud_services("slave-scraper")
+        GCloudConnection.__init__(self,URL, LOG_NAME= "slave-scraper")
         self.state = "idle"
         self.parent, self.child = Pipe()
         self.scraper = Scraper()
 
     def store(self, df, filename):
-        url = f"gs://{self.URL}/{filename}"
-        df.to_csv(filename)
+        BUCKET = "stock-sentiment-nlp.appspot.com"
+        url = f"gs://{BUCKET}/csv/{filename}"
+        df.to_csv(url)
         logging.info(f"{filename} stored succesfully")
 
     def scrap(self, job):
@@ -43,19 +43,12 @@ class Slave(GCloudConnection):
                 logging.info("Waiting for jobs")
                 time.sleep(3)
 
-    def change_state(self, child):
-        count = 0
-        while True:
-            count += 1
-            states = ["idle", "busy", "scraping-detected"]
-            child.send(states[count%3])
-            time.sleep(4)
 
 app = Flask(__name__)
 
 @app.route('/start')
 def start_child_process():
-    url = "127.0.0.1:8080"
+    url = os.environ["URL"]
     global slave
     slave = Slave(url)
     p = Process(target=slave.run, args=[slave.child])
@@ -71,8 +64,8 @@ def process_job():
 
 @app.route('/state')
 def current_state():
-    if slave.parent.poll(timeout=3): #gets last update sent by child process if there is something new
-        slave.state = slave.parent.recv()
+    if slave.parent.poll(timeout=3): #checks if there are new messages from the child process
+        slave.state = slave.parent.recv() # updates the state in such case
     logging.info(f"Current state: {slave.state}")
     return slave.state
 
