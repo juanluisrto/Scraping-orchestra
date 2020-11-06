@@ -10,8 +10,8 @@ class Slave(GCloudConnection):
     def __init__(self, URL):
         GCloudConnection.__init__(self, URL)
         #self.connect_cloud_services("slave-scraper")
-        self.state = Value("i", 0)
-        self.sender, self.receiver = Pipe()
+        self.state = "idle"
+        self.parent, self.child = Pipe()
         self.scraper = Scraper()
 
     def store(self, df, filename):
@@ -19,19 +19,13 @@ class Slave(GCloudConnection):
         df.to_csv("test.csv")
         logging.info(f"{filename} stored succesfully")
 
-    def get_state(self):
-        states = { 0: "idle", 1: "busy", 2: "scraping-detected"}
-        return states[self.state.value]
-
-    def set_state(self, state):
-        states = {"idle" : 0, "busy" : 1, "scraping-detected": 2}
-        self.state = states[state]
-
     def scrap(self, job):
-        self.set_state("busy")
+        self.child.send("busy")
+        self.state = "busy"
         try:
             df = self.scraper.scrap(job)
-            self.set_state("idle")
+            self.child.send("idle")
+            self.state = "idle"
         except Exception as ex:
             self.set_state("scraping-detected")
             logging.error(f"Job {job} failed with an error: {ex}")
@@ -39,22 +33,25 @@ class Slave(GCloudConnection):
         return df
 
 
-    def run(self, state, receiver):
-        self.state = state
+    def run(self, pipe):
+        self.child = pipe
         while True:
-            job = receiver.recv()
+            job = self.child.recv()
             if job != None:
-                logging.info(f"RUN: {self.get_state()} -- {job}")
+                logging.info(f"RUN: {self.state} -- {job}")
                 df = self.scrap(job)
                 if str(df) != "Failed":
                     self.store(df, str(job))
             else:
-                logging.info(f"No Jo. State: {self.get_state()}")
+                logging.info(f"No Jo. State: {self.state}")
                 time.sleep(3)
 
-    def change_state(self, state, receiver):
+    def change_state(self, child):
+        count = 0
         while True:
-            state.value = state.value % 3
+            count += 1
+            states = ["idle", "busy", "scraping-detected"]
+            child.send(states[count%3])
             time.sleep(4)
 
 app = Flask(__name__)
@@ -69,14 +66,17 @@ def process_job():
 
 @app.route('/state')
 def current_state():
-    logging.info(f"Current state: {slave.get_state()}")
-    return slave.get_state()
+    new_state = slave.parent.recv() #gets last update sent by child process
+    if new_state is not None:
+        slave.state = new_state
+    logging.info(f"Current state: {slave.state}")
+    return slave.state
 
 
 if __name__ == "__main__":
     def run(slave):
         slave.run()
-    p = Process(target= slave.change_state, args = (slave.state, slave.receiver))
+    p = Process(target= slave.change_state, args = [slave.child])
     p.start()
     logging.info("Slave run")
     app.run(host='127.0.0.1', port=8080, debug=True)
