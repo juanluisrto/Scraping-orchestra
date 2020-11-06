@@ -13,13 +13,13 @@ class Slave(GCloudConnection):
         self.scraper = Scraper()
 
     def store(self, df, filename):
-        BUCKET = "stock-sentiment-nlp.appspot.com"
-        url = f"gs://{BUCKET}/csv/{filename}"
+        bucket = os.environ["BUCKET"]
+        url = f"gs://{bucket}/csv/{filename}" #define url to bucket where results are stored
         df.to_csv(url)
         logging.info(f"{filename} stored succesfully")
 
     def scrap(self, job):
-        self.child.send("busy")
+        self.child.send("busy") #updates state to stop receiving more jobs
         try:
             df = self.scraper.scrap(job)
             self.child.send("idle")
@@ -27,7 +27,7 @@ class Slave(GCloudConnection):
             self.child.send("scraping-detected")
             logging.error(f"Job {job} failed with an error: {ex}")
             df = "Failed"
-        return df
+        return df  # returns the job output, or "Failed" if an error arised
 
 
     def run(self, pipe):
@@ -40,37 +40,30 @@ class Slave(GCloudConnection):
                 if str(df) != "Failed":
                     self.store(df, "_".join(job.values()))
             else:
-                logging.info("Waiting for jobs")
                 time.sleep(3)
 
 
 app = Flask(__name__)
 
 @app.route('/start')
-def start_child_process():
+def start_child_process(): #Gunicorn does not allow the creation of new processes before the app creation, so we need to define this route
     url = os.environ["URL"]
     global slave
     slave = Slave(url)
     p = Process(target=slave.run, args=[slave.child])
     p.start()
-    logging.info("Slave is running")
     return "Scraper running"
 
 @app.route('/job')
 def process_job():
-    logging.info(request.args)
-    slave.parent.send(request.args)
+    slave.parent.send(request.args) #sends a job to the Scraper through the "parent" end of the pipe
     return f"Job {request.args} started"
 
 @app.route('/state')
 def current_state():
     if slave.parent.poll(timeout=3): #checks if there are new messages from the child process
         slave.state = slave.parent.recv() # updates the state in such case
-    logging.info(f"Current state: {slave.state}")
     return slave.state
-
-
-
 
 if __name__ == "__main__":
     app.run(host='127.0.0.1', port=8080, debug=True)
