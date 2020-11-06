@@ -2,5 +2,6 @@ Flask
 google==3.0.0
 pandas
 google-cloud-logging
+google-cloud-storage
 gunicorn
 gcsfs
