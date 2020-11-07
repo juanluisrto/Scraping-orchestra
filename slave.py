@@ -14,7 +14,7 @@ class Slave(GCloudConnection):
 
     def store(self, df, filename):
         bucket = os.getenv("BUCKET") #define url to bucket where results are stored
-        url = f"gs://{bucket}/csv/{filename}" if "CLOUD" in os.environ else f"./csv/{filename}"
+        url = f"gs://{bucket}/csv/{filename}" if "CLOUD" in os.environ else f"./csv/{filename}.csv"
         df.to_csv(url)
         logging.info(f"{filename} stored succesfully")
 

@@ -47,6 +47,7 @@ class Master(GCloudConnection):
             if self.started == False:
                 self.started = self.start()
             state = self.check_slave_state()
+            logging.info(f"Current state of slave: {state}")
             next_job_ready = False # wont change if state == "busy" or "no-answer"
             if state == "scraping-detected":  # Error 429 in slave.
                 self.pending_jobs.insert(0, self.current_job)
