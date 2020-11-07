@@ -59,12 +59,14 @@ class Master(GCloudConnection):
             time.sleep(5)
 
     def import_jobs(self):
-        df_jobs = pd.read_csv("/csv/sample_jobs.csv", index_col = 0)
+        df_jobs = pd.read_csv("./csv/sample_jobs.csv", index_col = 0)
         self.pending_jobs = list(df_jobs.to_dict("index").values())
 
 
 if __name__ == "__main__":
-    url = os.environ["URL"]
+    url = os.getenv("URL")
+    if url is None:
+        url = "0.0.0.0:8080" #local mode
     master = Master(url)
     master.import_jobs()
     master.orchestrate()

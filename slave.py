@@ -13,8 +13,8 @@ class Slave(GCloudConnection):
         self.scraper = Scraper()
 
     def store(self, df, filename):
-        bucket = os.environ["BUCKET"]
-        url = f"gs://{bucket}/csv/{filename}" #define url to bucket where results are stored
+        bucket = os.environ["BUCKET"] #define url to bucket where results are stored
+        url = f"gs://{bucket}/csv/{filename}" if "CLOUD" in os.environ else f"./csv/{filename}"
         df.to_csv(url)
         logging.info(f"{filename} stored succesfully")
 
@@ -47,7 +47,7 @@ app = Flask(__name__)
 
 @app.route('/start')
 def start_child_process(): #Gunicorn does not allow the creation of new processes before the app creation, so we need to define this route
-    url = os.environ["URL"]
+    url = os.getenv("BUCKET")
     global slave
     slave = Slave(url)
     p = Process(target=slave.run, args=[slave.child])
