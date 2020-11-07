@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import logging, os, time
 from multiprocessing import Process, Pipe
 from utils import GCloudConnection, Scraper
