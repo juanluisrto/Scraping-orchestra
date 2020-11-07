@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-from google.cloud import storage as gc_storage, logging as gc_logging
 import logging, os, time
 from multiprocessing import Process, Pipe
 from utils import GCloudConnection, Scraper
