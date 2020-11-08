@@ -17,10 +17,10 @@ class Slave(GCloudConnection):
         df.to_csv(url)
         logging.info(f"{filename} stored succesfully")
 
-    def scrap(self, job):
+    def scrape(self, job):
         self.child.send("busy") #updates state to stop receiving more jobs
         try:
-            df = self.scraper.scrap(job)
+            df = self.scraper.scrape(job)
             self.child.send("idle")
         except Exception as ex:
             self.child.send("scraping-detected")
@@ -35,7 +35,7 @@ class Slave(GCloudConnection):
             job = self.child.recv()
             if job != None:
                 logging.info(f"Running job: {job}")
-                df = self.scrap(job)
+                df = self.scrape(job)
                 if str(df) != "Failed":
                     self.store(df, self.scraper.filename(job))
             else:

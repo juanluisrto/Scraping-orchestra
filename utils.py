@@ -21,7 +21,7 @@ class GCloudConnection:
 
 class Scraper:
     # runs same query filtering by every date in date range
-    def scrap(self, job, number_of_urls = 10):
+    def scrape(self, job, number_of_urls = 10):
         query, from_date, to_date = job.values()
         urls = []
         for d in pd.date_range(from_date, to_date):
