@@ -11,13 +11,20 @@ class Master(GCloudConnection):
         GCloudConnection.__init__(self,URL, LOG_NAME= "master-scraper")
         self.pending_jobs = []
         self.current_job = None
+        self.is_restarting = False
 
     def restart_machine(self):
         # execute these commands locally to manually re deploy instance
-        logging.info("Re-deploying instance")
-        deploy = pexpect.spawn('gcloud app deploy --version v1')
-        deploy.expect('Do you want to continue (Y/n)?')
-        deploy.sendline('Y')
+        try:
+            logging.info("Re-deploying instance")
+            deploy = pexpect.spawn('gcloud app deploy orchestra.yaml --version v1')
+            deploy.expect('Do you want to continue (Y/n)?')
+            deploy.sendline('Y')
+            deploy.expect("Deployed service", timeout=100)
+            self.is_restarting = True
+        except  Exception as  e:
+            self.is_restarting = False
+            logging.error(f"Problem re-deploying: {e}")
 
     def start(self):
         try:
@@ -45,7 +52,7 @@ class Master(GCloudConnection):
             next_job_ready = False # wont change if state == "busy" or "no-answer"
             if state == "not-started":
                 self.start()
-            if state == "scraping-detected":  # Error 429 in slave.
+            if state == "scraping-detected" and self.is_restarting == False:  # Error 429 in slave.
                 self.pending_jobs.insert(0, self.current_job)
                 self.restart_machine()
             elif state == "idle":
