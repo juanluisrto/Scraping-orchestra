@@ -11,7 +11,6 @@ class Master(GCloudConnection):
         GCloudConnection.__init__(self,URL, LOG_NAME= "master-scraper")
         self.pending_jobs = []
         self.current_job = None
-        self.started = False
 
     def restart_machine(self):
         # execute these commands locally to manually re deploy instance
@@ -19,20 +18,17 @@ class Master(GCloudConnection):
         deploy = pexpect.spawn('gcloud app deploy --version v1')
         deploy.expect('Do you want to continue (Y/n)?')
         deploy.sendline('Y')
-        self.started = False
 
     def start(self):
         try:
             requests.get(f"{self.URL}/start", timeout=3)
-            self.started = True
         except Exception:
             logging.error("Slave not running")
 
     def check_slave_state(self):
         try:
             response = requests.get(f"{self.URL}/state", timeout=10)
-            if response.status_code == 200: #if the endpoint answers
-                state = response.content.decode("utf-8")
+            state = response.content.decode("utf-8")
         except Exception:
             state = "no-answer"
         return state
