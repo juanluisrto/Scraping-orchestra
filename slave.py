@@ -12,7 +12,7 @@ class Slave(GCloudConnection):
         self.scraper = Scraper()
 
     def store(self, df, filename):
-        bucket = os.getenv("BUCKET") #define url to bucket where results are stored
+        bucket = self.URL  #define url to bucket where results are stored
         url = f"gs://{bucket}/csv/{filename}" if "CLOUD" in os.environ else f"./csv/{filename}.csv"
         df.to_csv(url)
         logging.info(f"{filename} stored succesfully")
@@ -51,6 +51,7 @@ def start_child_process(): #Gunicorn does not allow the creation of new processe
     slave = Slave(url)
     p = Process(target=slave.run, args=[slave.child])
     p.start()
+    logging.info("Scraper running")
     return "Scraper running"
 
 @app.route('/job')
@@ -60,9 +61,12 @@ def process_job():
 
 @app.route('/state')
 def current_state():
-    if slave.parent.poll(timeout=3): #checks if there are new messages from the child process
-        slave.state = slave.parent.recv() # updates the state in such case
-    return slave.state
+    try:
+        if slave.parent.poll(timeout=3): #checks if there are new messages from the child process
+            slave.state = slave.parent.recv() # updates the state in such case
+        return slave.state
+    except:
+        return "not-started"
 
 if __name__ == "__main__":
     app.run(host='127.0.0.1', port=8080, debug=True)

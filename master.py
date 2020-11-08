@@ -44,11 +44,11 @@ class Master(GCloudConnection):
 
     def orchestrate(self):
         while(len(self.pending_jobs) > 0):
-            if self.started == False:
-                self.started = self.start()
             state = self.check_slave_state()
             logging.info(f"Current state of slave: {state}")
             next_job_ready = False # wont change if state == "busy" or "no-answer"
+            if state == "not-started":
+                self.start()
             if state == "scraping-detected":  # Error 429 in slave.
                 self.pending_jobs.insert(0, self.current_job)
                 self.restart_machine()
@@ -57,7 +57,7 @@ class Master(GCloudConnection):
             if next_job_ready:
                 self.current_job = self.pending_jobs.pop(0)
                 self.send_job(self.current_job)
-            time.sleep(5)
+            time.sleep(3)
 
     def import_jobs(self):
         df_jobs = pd.read_csv("./csv/sample_jobs.csv", index_col = 0)
@@ -67,7 +67,7 @@ class Master(GCloudConnection):
 if __name__ == "__main__":
     url = os.getenv("URL")
     if url is None:
-        url = "0.0.0.0:8080" #local mode
+        url = "http://0.0.0.0:8080" #local mode
     master = Master(url)
     master.import_jobs()
     master.orchestrate()
