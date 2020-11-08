@@ -30,3 +30,10 @@ class Scraper:
             for url in results:
                 urls.append({"date" : d.date(), "url" : url})
         return pd.DataFrame(urls, columns=["date", "url"])
+
+    def filename(self, job):
+        #stock, keywords, from_date, to_date = job.values()
+        #filename = f"{stock}/{stock}_{from_date}_{to_date}.csv"
+        query, from_date, to_date = job.values()
+        filename = f"{query}_{from_date}_{to_date}.csv"
+        return filename

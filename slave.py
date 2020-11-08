@@ -13,7 +13,7 @@ class Slave(GCloudConnection):
 
     def store(self, df, filename):
         bucket = self.URL  #define url to bucket where results are stored
-        url = f"gs://{bucket}/csv/{filename}" if "CLOUD" in os.environ else f"./csv/{filename}.csv"
+        url = f"gs://{bucket}/csv/{filename}" if "CLOUD" in os.environ else f"./csv/{filename}"
         df.to_csv(url)
         logging.info(f"{filename} stored succesfully")
 
@@ -37,7 +37,7 @@ class Slave(GCloudConnection):
                 logging.info(f"Running job: {job}")
                 df = self.scrap(job)
                 if str(df) != "Failed":
-                    self.store(df, "_".join(job.values()))
+                    self.store(df, self.scraper.filename(job))
             else:
                 time.sleep(3)
 
